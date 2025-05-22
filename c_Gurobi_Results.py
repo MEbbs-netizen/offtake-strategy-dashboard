@@ -1,65 +1,94 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from gurobipy import Model, GRB
 import plotly.express as px
+import plotly.graph_objects as go
+import gurobipy as gp
+from gurobipy import GRB
+
+def run_gurobi_strategy():
+    try:
+        model = gp.Model()
+        strategies = ["CfD", "PPA", "Merchant"]
+        values = {
+            "CfD": np.random.normal(80, 5),
+            "PPA": np.random.normal(65, 8),
+            "Merchant": np.random.normal(75, 10)
+        }
+
+        x = {s: model.addVar(vtype=GRB.BINARY, name=s) for s in strategies}
+        model.setObjective(gp.quicksum(values[s] * x[s] for s in strategies), GRB.MAXIMIZE)
+        model.addConstr(gp.quicksum(x[s] for s in strategies) == 1, "OneStrategy")
+        model.setParam('OutputFlag', 0)
+        model.optimize()
+
+        for s in strategies:
+            if x[s].X > 0.5:
+                return s
+    except gp.GurobiError:
+        return "Error"
+    return "Unknown"
 
 def main():
-    st.title("Gurobi Optimization Results")
+    st.title("Gurobi Strategy Optimization (Simulated)")
 
-    df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
-    df = df[(df["Settlement_Date"] >= "2025-01-01") & (df["Settlement_Date"] <= "2060-12-31")]
-
-    base_price = df["Market_Reference_Price_GBP_Per_MWh"].mean()
-    strike = df["Strike_Price_GBP_Per_MWh"].mean()
-    gen = df["CFD_Generation_MWh"].mean()
-    volatility = 10
-
-    max_sims = st.slider("Max Number of Simulations", 1000, 50000, 5000, step=1000)
-    step_size = 1000
-
-    sample_sizes = list(range(step_size, max_sims + 1, step_size))
-    np.random.seed(1)
+    max_simulations = st.slider("Max Number of Simulations", 100, 10000, 1000, step=500)
 
     strategy_counts = []
+    steps = list(range(100, max_simulations + 1, 100))
+    for sim in steps:
+        batch = [run_gurobi_strategy() for _ in range(sim)]
+        counts = pd.Series(batch).value_counts().reset_index()
+        counts.columns = ["Strategy", "Count"]
+        counts["Simulations"] = sim
+        strategy_counts.append(counts)
 
-    for size in sample_sizes:
-        counts = {"CfD": 0, "PPA": 0, "Merchant": 0}
-        for _ in range(size):
-            prices = np.random.normal(base_price, volatility, 25)
-            rev = {
-                "CfD": ((strike - prices) + prices).mean() * gen,
-                "PPA": (prices.mean() - 2) * gen,
-                "Merchant": prices.mean() * gen
-            }
+    summary_df = pd.concat(strategy_counts)
+    summary_df = summary_df.sort_values(by=["Simulations", "Strategy"])
 
-            m = Model(); m.setParam("OutputFlag", 0)
-            x = {k: m.addVar(vtype=GRB.BINARY, name=k) for k in rev}
-            m.addConstr(sum(x.values()) == 1)
-            m.setObjective(sum(x[k] * v for k, v in rev.items()), GRB.MAXIMIZE)
-            m.optimize()
-            chosen = [k for k in rev if x[k].X > 0.5][0]
-            counts[chosen] += 1
-
-        for strat, count in counts.items():
-            strategy_counts.append({"Simulations": size, "Strategy": strat, "Count": count})
-
-    df_results = pd.DataFrame(strategy_counts)
-
+    # Line Chart
     st.subheader("Strategy Selection Trends vs Simulations")
-    fig = px.line(df_results, x="Simulations", y="Count", color="Strategy", markers=True)
-    fig.update_layout(
-        title="Optimal Strategy Frequency Across Monte Carlo Runs",
-        xaxis_title="Number of Simulations",
-        yaxis_title="Count of Selections",
-        height=500
+    fig_line = px.line(
+        summary_df,
+        x="Simulations",
+        y="Count",
+        color="Strategy",
+        markers=True
     )
-    st.plotly_chart(fig)
+    fig_line.update_layout(
+        paper_bgcolor="black",
+        plot_bgcolor="black",
+        font_color="white",
+        height=450
+    )
+    st.plotly_chart(fig_line)
 
-    st.markdown("""
-    ### 💡 Insights:
-    - **CfD dominates** under this price regime, showing up in nearly all simulation cases.
-    - **PPA and Merchant** selections are rare under low volatility or high strike prices.
-    - Adjust volatility or strike assumptions in earlier pages to see strategic shifts here.
-    - Gurobi selects the most **economically favorable strategy** based on simulated prices.
-    """)
+    # Donut Chart
+    st.subheader("Final Strategy Distribution")
+    final_df = summary_df[summary_df['Simulations'] == summary_df['Simulations'].max()]
+    fig_donut = go.Figure(data=[go.Pie(
+        labels=final_df['Strategy'],
+        values=final_df['Count'],
+        hole=0.5,
+        marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c']),
+        textinfo='label+percent',
+        insidetextorientation='radial'
+    )])
+    fig_donut.update_layout(
+        showlegend=True,
+        paper_bgcolor='black',
+        plot_bgcolor='black',
+        font=dict(color='white'),
+        margin=dict(t=30, b=30, l=30, r=30),
+        height=400
+    )
+    st.plotly_chart(fig_donut)
+
+    # Insights
+    st.subheader("Insights")
+    top = final_df.loc[final_df["Count"].idxmax()]
+    st.markdown(f"- The **{top['Strategy']}** strategy was selected most frequently: **{top['Count']:,}** times.")
+    st.markdown("- The donut chart summarizes final choice distribution based on Gurobi-driven simulation.")
+
+if __name__ == "__main__":
+    main()
