@@ -7,7 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 
 def main():
-    st.title(" NPV and IRR Analysis")
+    st.title("💰 NPV and IRR Analysis")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
     df["Year"] = df["Settlement_Date"].dt.year
@@ -65,6 +65,7 @@ def main():
 
     if st.button("Generate PDF Report"):
         pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
         pdf.set_font("Helvetica", size=12)
 
@@ -78,8 +79,8 @@ def main():
         pdf.cell(0, 10, f"Payback Year: {payback_year}", ln=True)
 
         pdf.ln(5)
-        pdf.multi_cell(0, 8, "NPV > 0 and IRR > discount rate means the project is investable.")
-        pdf.multi_cell(0, 8, f"Payback Year indicates when the project recovers initial investment.")
+        pdf.multi_cell(w=190, h=8, txt="Interpretation: NPV > 0 and IRR > discount rate means the project is investable.")
+        pdf.multi_cell(w=190, h=8, txt="Payback Year indicates when cumulative discounted returns recover investment.")
 
         pdf.ln(5)
         pdf.set_font("Helvetica", "B", 14)
@@ -90,7 +91,8 @@ def main():
             y = cf["Year"].iloc[i]
             n = cf["CFD_Payments_GBP"].iloc[i]
             d = dcf[i]
-            pdf.cell(0, 8, f"{y}: Nominal = £{n:,.0f}, Discounted = £{d:,.0f}", ln=True)
+            line = f"{y}: Nominal = £{n:,.0f}, Discounted = £{d:,.0f}"
+            pdf.multi_cell(w=190, h=8, txt=line)
 
         try:
             import plotly.io as pio
@@ -102,7 +104,7 @@ def main():
         except Exception:
             pdf.add_page()
             pdf.set_font("Helvetica", "I", 12)
-            pdf.multi_cell(0, 10, "Chart rendering failed. Ensure kaleido is installed for full PDF support.")
+            pdf.multi_cell(w=190, h=10, txt="Chart image not included. Please install 'kaleido' to enable chart rendering.")
 
         pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="ignore")
         st.download_button(
