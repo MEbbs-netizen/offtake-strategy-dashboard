@@ -105,10 +105,11 @@ def main():
             pdf.set_font("Arial", "I", 12)
             pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering in the PDF.")
 
-        pdf_output = BytesIO()
+        # Correct output to buffer
+        pdf_bytes = pdf.output(dest="S").encode("latin1")
         st.download_button(
             label="Download PDF Report",
-            data=pdf_output.getvalue(),
+            data=pdf_bytes,
             file_name="npv_irr_report.pdf",
             mime="application/pdf"
         )
