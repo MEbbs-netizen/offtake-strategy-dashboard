@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from numpy_financial import irr
 import plotly.graph_objects as go
-import plotly.io as pio
 from fpdf import FPDF
 from io import BytesIO
 
@@ -88,19 +87,23 @@ def main():
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 10, "Cashflow Table", ln=True)
         pdf.set_font("Arial", "", 10)
-
         for i in range(len(cf)):
             y = cf["Year"].iloc[i]
             n = cf["CFD_Payments_GBP"].iloc[i]
             d = dcf[i]
             pdf.cell(0, 8, f"{y}: Nominal = £{n:,.0f}, Discounted = £{d:,.0f}", ln=True)
 
-        chart_img = BytesIO()
-        pio.write_image(fig, chart_img, format='png')
-        chart_img.seek(0)
-
-        pdf.add_page()
-        pdf.image(chart_img, x=10, y=30, w=190)
+        try:
+            import plotly.io as pio
+            chart_img = BytesIO()
+            pio.write_image(fig, chart_img, format='png')
+            chart_img.seek(0)
+            pdf.add_page()
+            pdf.image(chart_img, x=10, y=30, w=190)
+        except Exception:
+            pdf.add_page()
+            pdf.set_font("Arial", "I", 12)
+            pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering in the PDF.")
 
         pdf_output = BytesIO()
         st.download_button(
