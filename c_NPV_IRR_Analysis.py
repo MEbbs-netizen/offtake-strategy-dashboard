@@ -70,10 +70,15 @@ def main():
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-        pdf.set_font("Helvetica", "B", 16)
+
+        # ✅ Use DejaVuSans TTF for full UTF-8 character support
+        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+        pdf.set_font("DejaVu", "", 12)
+
+        pdf.set_font("DejaVu", "B", 16)
         pdf.cell(0, 10, "NPV and IRR Analysis Report", ln=True)
 
-        pdf.set_font("Helvetica", "", 12)
+        pdf.set_font("DejaVu", "", 12)
         pdf.cell(0, 10, f"Discount Rate: {rate*100:.1f}%", ln=True)
         pdf.cell(0, 10, f"NPV: £{npv:,.0f}", ln=True)
         pdf.cell(0, 10, f"IRR: {irr_display}", ln=True)
@@ -84,10 +89,10 @@ def main():
         pdf.multi_cell(0, 8, f"Payback Year ({payback_year}) means discounted returns exceed investment by then.")
 
         pdf.ln(5)
-        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_font("DejaVu", "B", 14)
         pdf.cell(0, 10, "Cashflow Table", ln=True)
 
-        pdf.set_font("Helvetica", "", 10)
+        pdf.set_font("DejaVu", "", 10)
         for i in range(len(cf)):
             y = cf["Year"].iloc[i]
             n = cf["CFD_Payments_GBP"].iloc[i]
@@ -103,10 +108,9 @@ def main():
             pdf.image(chart_img, x=10, y=30, w=190)
         except Exception:
             pdf.add_page()
-            pdf.set_font("Helvetica", "I", 12)
+            pdf.set_font("DejaVu", "I", 12)
             pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering.")
 
-        # Use UTF-8 friendly output
         pdf_bytes = pdf.output(dest="S").encode("utf-8")
         st.download_button(
             label="Download PDF Report",
