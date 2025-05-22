@@ -1,69 +1,80 @@
-
 import streamlit as st
-import pandas as pd
 import numpy as np
-import plotly.express as px
+import pandas as pd
+import plotly.graph_objects as go
 
 def main():
     st.title("Revenue Projection Model")
+    st.markdown("This tool simulates expected annual revenue for three offtake strategies under uncertain market conditions.")
+    st.markdown("Adjust the inputs in the sidebar to reflect project assumptions and compare outcomes.")
 
-    df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
-    df = df[(df["Settlement_Date"] >= "2025-01-01") & (df["Settlement_Date"] <= "2060-12-31")]
+    # Sidebar controls
+    gen = st.sidebar.slider("Annual Generation (MWh)", 50000, 500000, 250000, step=10000)
+    base_price = st.sidebar.slider("Base Market Price (£/MWh)", 40, 120, 70)
+    strike = st.sidebar.slider("CfD Strike Price (£/MWh)", 50, 150, 100)
+    volatility = st.sidebar.slider("Market Price Volatility (sigma)", 0, 30, 10)
+    ppa_discount = st.sidebar.slider("PPA Discount (£/MWh)", 0, 10, 2)
 
-    base = df["Market_Reference_Price_GBP_Per_MWh"].mean()
-    strike = df["Strike_Price_GBP_Per_MWh"].mean()
-    gen = df["CFD_Generation_MWh"].mean()
-    volatility = 10
+    st.markdown(f'⚠️ **PPA Discount Applied:** £{ppa_discount}/MWh')
 
-    max_sims = st.sidebar.slider("Max Simulations", 100, 50000, 1000, step=100)
-    sample_sizes = list(range(100, max_sims + 1, 100))
-
-    results = {"Sample Size": [], "Strategy": [], "Mean Revenue": []}
+    # Simulate 25 years of market prices
     np.random.seed(42)
+    prices = np.random.normal(loc=base_price, scale=volatility, size=25)
 
-    for size in sample_sizes:
-        tracker = {"CfD": [], "PPA": [], "Merchant": []}
-        for _ in range(size):
-            prices = np.random.normal(base, volatility, 25)
-            rev = {
-                "CfD": ((strike - prices) + prices).mean() * gen,
-                "PPA": (prices.mean() - 2) * gen,
-                "Merchant": prices.mean() * gen
+    # Calculate revenue per strategy
+    revenue = {
+        "CfD": (strike * gen),
+        "PPA": ((prices.mean() - ppa_discount) * gen),
+        "Merchant": (prices.mean() * gen)
+    }
+
+    df = pd.DataFrame.from_dict(revenue, orient="index", columns=["Revenue"]).reset_index()
+    df.columns = ["Strategy", "Revenue"]
+
+    # Donut-style gauge chart
+    fig = go.Figure()
+    colors = ["#1f77b4", "#8c564b", "#ff7f0e"]
+
+    for i, row in df.iterrows():
+        fig.add_trace(go.Indicator(
+            mode="gauge+number",
+            value=row["Revenue"] / 1e6,
+            title={"text": f"<b>{row['Strategy']}</b><br><sub>£m</sub>", "font": {"size": 18}},
+            domain={'row': 0, 'column': i},
+            number={"font": {"size": 36, "color": "white"}},
+            gauge={
+                "axis": {"range": [None, max(df['Revenue']) / 1e6], "tickwidth": 1, "tickcolor": "gray"},
+                "bar": {"color": colors[i]},
+                "bgcolor": "black",
+                "borderwidth": 2,
+                "bordercolor": "white"
             }
-            for k in tracker:
-                tracker[k].append(rev[k])
+        ))
 
-        for k in tracker:
-            results["Sample Size"].append(size)
-            results["Strategy"].append(k)
-            results["Mean Revenue"].append(np.mean(tracker[k]))
-
-    df_result = pd.DataFrame(results)
-
-    st.subheader("Revenue vs Simulation Count (Bar Chart)")
-    fig = px.bar(
-        df_result,
-        x="Sample Size",
-        y="Mean Revenue",
-        color="Strategy",
-        barmode="group",
-        height=500,
-        template="plotly_dark"
-    )
     fig.update_layout(
-        xaxis_title="Number of Simulations",
-        yaxis_title="Average Revenue (£)",
-        legend_title="Strategy",
-        bargap=0.15
+        grid={'rows': 1, 'columns': 3, 'pattern': "independent"},
+        paper_bgcolor="black",
+        plot_bgcolor="black",
+        title={
+            "text": "Revenue Projection by Strategy",
+            "font": {"size": 28, "color": "white"},
+            "x": 0.5
+        },
+        font=dict(color="white")
     )
-    st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("### 🔍 Insight:")
-    st.markdown("""
-    - **CfD** shows high stability and converges rapidly with few simulations.
-    - **PPA** and **Merchant** models vary more with volatility.
-    - Use this chart to choose optimal simulation sample size.
-    """)
+    st.plotly_chart(fig)
+
+    # Insight Section
+    st.markdown("---")
+    st.markdown("### 📘 Notes")
+    st.markdown("- **CfD** guarantees revenue at the strike price regardless of market conditions.")
+    st.markdown("- **PPA** typically trades at a discount to merchant prices due to contract structure.")
+    st.markdown("- **Merchant** strategies carry more upside—and downside—depending on price volatility.")
+
+    st.markdown("### 💡 Key Insight")
+    best = df.loc[df["Revenue"].idxmax()]
+    st.markdown(f"- **{best['Strategy']}** strategy yields the highest projected revenue (£{best['Revenue']:,.0f}).")
 
 if __name__ == "__main__":
     main()
