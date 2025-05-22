@@ -5,3 +5,4 @@ plotly
 gurobipy
 numpy-financial
 fpdf
+kaleido
