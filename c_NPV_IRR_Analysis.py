@@ -106,7 +106,8 @@ def main():
             pdf.set_font("Helvetica", "I", 12)
             pdf.multi_cell(w=190, h=10, txt="Chart image not included. Please install 'kaleido' to enable chart rendering.")
 
-        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="ignore")
+        # ✅ This avoids all .encode() errors
+        pdf_bytes = bytes(pdf.output(dest="S"))
         st.download_button(
             label="Download PDF Report",
             data=pdf_bytes,
