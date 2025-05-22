@@ -35,8 +35,6 @@ def main():
     col2.metric("IRR", irr_display)
     col3.metric("Payback Year", payback_year)
 
-    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate → investable economics.")
-
     fig = go.Figure()
     fig.add_trace(go.Bar(x=cf["Year"], y=cashflows, name="Nominal", marker_color="green"))
     fig.add_trace(go.Scatter(x=cf["Year"], y=dcf, name="Discounted", mode="lines+markers", line=dict(color="red", width=3)))
@@ -44,19 +42,18 @@ def main():
         title="Nominal vs Discounted CfD Payments",
         xaxis_title="Year",
         yaxis_title="Payments (£)",
-        barmode="group",
         template="plotly_white",
         margin=dict(t=60, b=40),
         xaxis=dict(range=[cf["Year"].min(), 2060])
     )
     st.plotly_chart(fig)
 
-    st.markdown("### ℹ️ What This Means")
+    st.markdown("### What This Means")
     st.markdown(
-        f"- **NPV** is the total value today of all future CfD cashflows.  \n"
-        f"- **IRR** is the effective annual return on the project.  \n"
-        f"- **Payback Year ({payback_year})** is when cumulative **discounted** returns cover the initial outlay.  \n"
-        f"- Discounting reflects time value of money – future income is worth less today."
+        f"- **NPV** is the present value of all CfD cashflows.  \n"
+        f"- **IRR** is the effective annual return.  \n"
+        f"- **Payback Year** is when discounted returns recover the investment.  \n"
+        f"- Discounted values reflect time value of money."
     )
 
     st.download_button(
@@ -68,31 +65,27 @@ def main():
 
     if st.button("Generate PDF Report"):
         pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
+        pdf.set_font("Helvetica", size=12)
 
-        # ✅ Use DejaVuSans TTF for full UTF-8 character support
-        pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
-        pdf.set_font("DejaVu", "", 12)
-
-        pdf.set_font("DejaVu", "B", 16)
+        pdf.set_font("Helvetica", "B", 16)
         pdf.cell(0, 10, "NPV and IRR Analysis Report", ln=True)
 
-        pdf.set_font("DejaVu", "", 12)
+        pdf.set_font("Helvetica", "", 12)
         pdf.cell(0, 10, f"Discount Rate: {rate*100:.1f}%", ln=True)
         pdf.cell(0, 10, f"NPV: £{npv:,.0f}", ln=True)
         pdf.cell(0, 10, f"IRR: {irr_display}", ln=True)
         pdf.cell(0, 10, f"Payback Year: {payback_year}", ln=True)
 
         pdf.ln(5)
-        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate → investable economics.")
-        pdf.multi_cell(0, 8, f"Payback Year ({payback_year}) means discounted returns exceed investment by then.")
+        pdf.multi_cell(0, 8, "NPV > 0 and IRR > discount rate means the project is investable.")
+        pdf.multi_cell(0, 8, f"Payback Year indicates when the project recovers initial investment.")
 
         pdf.ln(5)
-        pdf.set_font("DejaVu", "B", 14)
+        pdf.set_font("Helvetica", "B", 14)
         pdf.cell(0, 10, "Cashflow Table", ln=True)
+        pdf.set_font("Helvetica", "", 10)
 
-        pdf.set_font("DejaVu", "", 10)
         for i in range(len(cf)):
             y = cf["Year"].iloc[i]
             n = cf["CFD_Payments_GBP"].iloc[i]
@@ -108,10 +101,10 @@ def main():
             pdf.image(chart_img, x=10, y=30, w=190)
         except Exception:
             pdf.add_page()
-            pdf.set_font("DejaVu", "I", 12)
-            pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering.")
+            pdf.set_font("Helvetica", "I", 12)
+            pdf.multi_cell(0, 10, "Chart rendering failed. Ensure kaleido is installed for full PDF support.")
 
-        pdf_bytes = pdf.output(dest="S").encode("utf-8")
+        pdf_bytes = pdf.output(dest="S").encode("latin-1", errors="ignore")
         st.download_button(
             label="Download PDF Report",
             data=pdf_bytes,
