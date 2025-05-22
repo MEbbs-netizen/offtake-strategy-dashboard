@@ -36,6 +36,8 @@ def main():
     col2.metric("IRR", irr_display)
     col3.metric("Payback Year", payback_year)
 
+    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate → investable economics.")
+
     fig = go.Figure()
     fig.add_trace(go.Bar(x=cf["Year"], y=cashflows, name="Nominal", marker_color="green"))
     fig.add_trace(go.Scatter(x=cf["Year"], y=dcf, name="Discounted", mode="lines+markers", line=dict(color="red", width=3)))
@@ -49,6 +51,14 @@ def main():
         xaxis=dict(range=[cf["Year"].min(), 2060])
     )
     st.plotly_chart(fig)
+
+    st.markdown("### ℹ️ What This Means")
+    st.markdown(
+        f"- **NPV** is the total value today of all future CfD cashflows.  \n"
+        f"- **IRR** is the effective annual return on the project.  \n"
+        f"- **Payback Year ({payback_year})** is when cumulative **discounted** returns cover the initial outlay.  \n"
+        f"- Discounting reflects time value of money - future income is worth less today."
+    )
 
     st.download_button(
         label="Download Cashflows as CSV",
@@ -70,6 +80,11 @@ def main():
         pdf.cell(0, 10, f"Payback Year: {payback_year}", ln=True)
 
         pdf.ln(10)
+        pdf.set_font("Arial", "", 11)
+        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate → investable economics.")
+        pdf.multi_cell(0, 8, f"Payback Year ({payback_year}) means discounted returns exceed investment by then.")
+
+        pdf.ln(10)
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 10, "Cashflow Table", ln=True)
         pdf.set_font("Arial", "", 10)
@@ -88,7 +103,6 @@ def main():
         pdf.image(chart_img, x=10, y=30, w=190)
 
         pdf_output = BytesIO()
-        pdf.output(pdf_output)
         st.download_button(
             label="Download PDF Report",
             data=pdf_output.getvalue(),
