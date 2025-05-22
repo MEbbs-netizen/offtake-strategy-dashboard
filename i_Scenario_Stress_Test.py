@@ -34,7 +34,7 @@ def main():
     df["Delta_Revenue"] = df["Shocked_Revenue"] - df["Base_Revenue"]
     df["Delta_%"] = 100 * df["Delta_Revenue"] / df["Base_Revenue"]
 
-    # Donut-style indicators with dark background
+    # Large gauge charts for shocked revenue
     st.subheader(f"Revenue Under {shock_pct:+} % Price Shock")
     fig = go.Figure()
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
@@ -43,9 +43,9 @@ def main():
         fig.add_trace(go.Indicator(
             mode="gauge+number+delta",
             value=row["Shocked_Revenue"] / 1e6,
-            title={"text": f"{row['Strategy']} (£m)", "font": {"size": 18, "color": "white"}},
-            domain={"row": 0, "column": i},
-            number={"font": {"size": 34, "color": "white"}},
+            title={"text": f"{row['Strategy']} (£m)", "font": {"size": 22, "color": "white"}},
+            domain={"x": [i / len(df), (i + 1) / len(df)], "y": [0, 1]},
+            number={"font": {"size": 42, "color": "white"}},
             delta={
                 "reference": row["Base_Revenue"] / 1e6,
                 "relative": True,
@@ -63,10 +63,10 @@ def main():
         ))
 
     fig.update_layout(
-        grid={'rows': 1, 'columns': len(df), 'pattern': "independent"},
         paper_bgcolor="black",
         plot_bgcolor="black",
-        height=400
+        height=550,
+        margin=dict(l=10, r=10, t=40, b=10)
     )
     st.plotly_chart(fig)
 
@@ -94,7 +94,7 @@ def main():
     worst = df.loc[df["Shocked_Revenue"].idxmin()]
     st.markdown(f"- Under a {shock_pct:+}% price shock, **{best['Strategy']}** achieves the highest revenue: £{best['Shocked_Revenue']:,.0f}.")
     st.markdown(f"- The lowest revenue is observed for **{worst['Strategy']}**: £{worst['Shocked_Revenue']:,.0f}.")
-    st.markdown("- This test highlights how offtake strategies behave under market volatility.")
+    st.markdown("- This helps compare downside risk and resilience between offtake strategies.")
 
 if __name__ == "__main__":
     main()
