@@ -7,7 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 
 def main():
-    st.title(" NPV and IRR Analysis")
+    st.title("💰 NPV and IRR Analysis")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
     df["Year"] = df["Settlement_Date"].dt.year
@@ -35,7 +35,7 @@ def main():
     col2.metric("IRR", irr_display)
     col3.metric("Payback Year", payback_year)
 
-    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate -> investable economics.")
+    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate → investable economics.")
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=cf["Year"], y=cashflows, name="Nominal", marker_color="green"))
@@ -56,7 +56,7 @@ def main():
         f"- **NPV** is the total value today of all future CfD cashflows.  \n"
         f"- **IRR** is the effective annual return on the project.  \n"
         f"- **Payback Year ({payback_year})** is when cumulative **discounted** returns cover the initial outlay.  \n"
-        f"- Discounting reflects time value of money - future income is worth less today."
+        f"- Discounting reflects time value of money – future income is worth less today."
     )
 
     st.download_button(
@@ -68,25 +68,26 @@ def main():
 
     if st.button("Generate PDF Report"):
         pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
+        pdf.set_font("Helvetica", "B", 16)
         pdf.cell(0, 10, "NPV and IRR Analysis Report", ln=True)
-        pdf.ln(5)
-        pdf.set_font("Arial", "", 12)
+
+        pdf.set_font("Helvetica", "", 12)
         pdf.cell(0, 10, f"Discount Rate: {rate*100:.1f}%", ln=True)
         pdf.cell(0, 10, f"NPV: £{npv:,.0f}", ln=True)
         pdf.cell(0, 10, f"IRR: {irr_display}", ln=True)
         pdf.cell(0, 10, f"Payback Year: {payback_year}", ln=True)
 
-        pdf.ln(10)
-        pdf.set_font("Arial", "", 11)
-        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate -> investable economics.")
+        pdf.ln(5)
+        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate → investable economics.")
         pdf.multi_cell(0, 8, f"Payback Year ({payback_year}) means discounted returns exceed investment by then.")
 
-        pdf.ln(10)
-        pdf.set_font("Arial", "B", 14)
+        pdf.ln(5)
+        pdf.set_font("Helvetica", "B", 14)
         pdf.cell(0, 10, "Cashflow Table", ln=True)
-        pdf.set_font("Arial", "", 10)
+
+        pdf.set_font("Helvetica", "", 10)
         for i in range(len(cf)):
             y = cf["Year"].iloc[i]
             n = cf["CFD_Payments_GBP"].iloc[i]
@@ -96,16 +97,17 @@ def main():
         try:
             import plotly.io as pio
             chart_img = BytesIO()
-            pio.write_image(fig, chart_img, format='png')
+            pio.write_image(fig, chart_img, format="png")
             chart_img.seek(0)
             pdf.add_page()
             pdf.image(chart_img, x=10, y=30, w=190)
         except Exception:
             pdf.add_page()
-            pdf.set_font("Arial", "I", 12)
-            pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering in the PDF.")
+            pdf.set_font("Helvetica", "I", 12)
+            pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering.")
 
-        pdf_bytes = pdf.output(dest="S").encode("latin1")
+        # Use UTF-8 friendly output
+        pdf_bytes = pdf.output(dest="S").encode("utf-8")
         st.download_button(
             label="Download PDF Report",
             data=pdf_bytes,

@@ -6,3 +6,4 @@ gurobipy
 numpy-financial
 fpdf
 kaleido
+fpdf2
