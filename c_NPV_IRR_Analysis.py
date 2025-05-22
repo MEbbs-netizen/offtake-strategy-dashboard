@@ -7,7 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 
 def main():
-    st.title("💰 NPV and IRR Analysis")
+    st.title(" NPV and IRR Analysis")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
     df["Year"] = df["Settlement_Date"].dt.year
