@@ -7,7 +7,7 @@ from fpdf import FPDF
 from io import BytesIO
 
 def main():
-    st.title("💰 NPV and IRR Analysis")
+    st.title(" NPV and IRR Analysis")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
     df["Year"] = df["Settlement_Date"].dt.year
@@ -35,7 +35,7 @@ def main():
     col2.metric("IRR", irr_display)
     col3.metric("Payback Year", payback_year)
 
-    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate → investable economics.")
+    st.markdown("📌 **Interpretation:** NPV > 0 and IRR > discount rate -> investable economics.")
 
     fig = go.Figure()
     fig.add_trace(go.Bar(x=cf["Year"], y=cashflows, name="Nominal", marker_color="green"))
@@ -80,7 +80,7 @@ def main():
 
         pdf.ln(10)
         pdf.set_font("Arial", "", 11)
-        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate → investable economics.")
+        pdf.multi_cell(0, 8, "Interpretation: NPV > 0 and IRR > discount rate -> investable economics.")
         pdf.multi_cell(0, 8, f"Payback Year ({payback_year}) means discounted returns exceed investment by then.")
 
         pdf.ln(10)
@@ -105,7 +105,6 @@ def main():
             pdf.set_font("Arial", "I", 12)
             pdf.multi_cell(0, 10, "⚠️ Chart image not included. Please install 'kaleido' to enable chart rendering in the PDF.")
 
-        # Correct output to buffer
         pdf_bytes = pdf.output(dest="S").encode("latin1")
         st.download_button(
             label="Download PDF Report",
