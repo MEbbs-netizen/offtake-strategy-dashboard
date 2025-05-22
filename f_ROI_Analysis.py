@@ -1,13 +1,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 def main():
     st.title("ROI Analysis")
-    st.markdown("This section evaluates **total revenue** and **ROI** over the asset’s lifetime, factoring in:")
+    st.markdown("This section evaluates total revenue and ROI over the asset’s lifetime, factoring in:")
     st.markdown("- Annual degradation in output")
     st.markdown("- Ongoing O&M costs")
     st.markdown("- Reference market pricing")
+
     st.markdown("Adjust inputs in the sidebar to simulate different investment scenarios.")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
@@ -45,37 +47,43 @@ def main():
     result_df = pd.DataFrame(sim_data)
     result_df["ROI_Label"] = result_df["ROI"].apply(lambda x: f"{x:.1%}")
 
-    # Plot revenue
-    st.subheader("📊 Total Revenue over Lifetime (Degraded Output)")
-    st.markdown("_This reflects gross income from energy sales before cost deductions._")
+    # Total Revenue Bar Chart
+    st.subheader("Total Revenue Over Project Lifetime")
+    st.markdown("Gross energy revenue over the life of the asset, factoring in output degradation.")
     fig1 = px.bar(result_df, x="Reference_Type", y="Revenue", text="Revenue", color="Reference_Type")
     fig1.update_layout(yaxis_title="Total Revenue (£)", height=400)
     st.plotly_chart(fig1)
 
-    # Plot ROI with benchmark
-    st.subheader("📈 ROI Including O&M + Degradation")
-    st.markdown("_Return on Investment after accounting for all capital and operational costs._")
-    fig2 = px.bar(result_df, x="Reference_Type", y="ROI", text="ROI_Label", color="Reference_Type")
-    fig2.update_layout(yaxis_title="Return on Investment", height=400)
-    fig2.update_traces(textposition="outside")
-    fig2.add_shape(
-        type="line",
-        x0=-0.5, x1=len(result_df["Reference_Type"]) - 0.5,
-        y0=0.10, y1=0.10,
-        line=dict(color="red", dash="dash"),
-    )
-    fig2.add_annotation(
-        x=0.5, y=0.105,
-        text="ROI Benchmark: 10%",
-        showarrow=False,
-        font=dict(color="red", size=12)
+    # ROI Indicators
+    st.subheader("Adjusted ROI by Strategy")
+    colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+    fig2 = go.Figure()
+    for i, row in result_df.iterrows():
+        fig2.add_trace(go.Indicator(
+            mode="gauge+number",
+            value=row["ROI"] * 100,
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>% ROI</sub>", "font": {"size": 16}},
+            domain={"row": 0, "column": i},
+            number={"suffix": "%", "font": {"size": 30, "color": "white"}},
+            gauge={
+                "axis": {"range": [-100, 100], "tickwidth": 1, "tickcolor": "gray"},
+                "bar": {"color": colors[i % len(colors)]},
+                "bgcolor": "black",
+                "borderwidth": 2,
+                "bordercolor": "white"
+            }
+        ))
+    fig2.update_layout(
+        grid={'rows': 1, 'columns': len(result_df), 'pattern': "independent"},
+        paper_bgcolor="black",
+        plot_bgcolor="black",
+        height=400
     )
     st.plotly_chart(fig2)
 
     # ROI Over Time
-    st.subheader("⏳ ROI Over Time for Each Strategy")
+    st.subheader("Cumulative ROI Over Time")
     roi_by_year = []
-
     for ref in df["Reference_Type"].unique():
         yearly_output = [discounted_output(y) for y in range(1, asset_life + 1)]
         avg_price = df[df["Reference_Type"] == ref]["Strike_Price_GBP_Per_MWh"].mean()
@@ -98,18 +106,18 @@ def main():
 
     # CSV Export
     st.download_button(
-        label="📥 Download ROI Results as CSV",
+        label="Download ROI Results as CSV",
         data=result_df.to_csv(index=False),
         file_name="roi_analysis_results.csv",
         mime="text/csv"
     )
 
     # Notes
-    st.markdown("### 🔍 Insight")
+    st.markdown("### Interpretation")
     st.markdown("""
-    - Longer lifespans improve ROI but amplify degradation impact.
-    - Reference pricing (IMRP vs BMRP) strongly affects total return.
-    - Use these comparisons to support strategy or bidding assumptions.
+    - ROI is affected most by degradation rate and O&M costs.
+    - Total lifetime revenue is driven by strike price and installed capacity.
+    - Use these comparisons to evaluate competitive positioning or auction bids.
     """)
 
 if __name__ == "__main__":
