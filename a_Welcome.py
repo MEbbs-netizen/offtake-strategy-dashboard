@@ -21,13 +21,15 @@ def main():
 
     col1, col2 = st.columns([1, 2])
     with col1:
-        st.subheader("📚 Modules")
+        st.subheader(" Modules")
         st.markdown("""
         - Zonal vs National Spread  
         - CfD Summary  
         - NPV & IRR Analysis  
         - ROI Comparison  
         - Gurobi Optimization  
+        - Bidding Strategy Simulator
+        - Scenario Stress test
         - Revenue & Risk Simulations
         """)
     with col2:
