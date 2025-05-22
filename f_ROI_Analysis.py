@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 
 def main():
     st.title("ROI Analysis")
@@ -9,7 +9,6 @@ def main():
     st.markdown("- Annual degradation in output")
     st.markdown("- Ongoing O&M costs")
     st.markdown("- Reference market pricing")
-
     st.markdown("Adjust inputs in the sidebar to simulate different investment scenarios.")
 
     df = pd.read_csv("data/cfd_processed.csv", parse_dates=["Settlement_Date"])
@@ -29,7 +28,7 @@ def main():
     def discounted_output(year):
         return annual_gen * ((1 - degradation_rate) ** (year - 1))
 
-    # Simulation loop
+    # Simulation
     sim_data = []
     for ref in df["Reference_Type"].unique():
         total_revenue = 0
@@ -47,26 +46,47 @@ def main():
     result_df = pd.DataFrame(sim_data)
     result_df["ROI_Label"] = result_df["ROI"].apply(lambda x: f"{x:.1%}")
 
-    # Total Revenue Bar Chart
+    # Donut: Total Revenue
     st.subheader("Total Revenue Over Project Lifetime")
     st.markdown("Gross energy revenue over the life of the asset, factoring in output degradation.")
-    fig1 = px.bar(result_df, x="Reference_Type", y="Revenue", text="Revenue", color="Reference_Type")
-    fig1.update_layout(yaxis_title="Total Revenue (£)", height=400)
+
+    fig1 = go.Figure()
+    colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
+    for i, row in result_df.iterrows():
+        fig1.add_trace(go.Indicator(
+            mode="gauge+number",
+            value=row["Revenue"] / 1e6,
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>£m</sub>", "font": {"size": 18}},
+            domain={"row": 0, "column": i},
+            number={"font": {"size": 36, "color": "white"}},
+            gauge={
+                "axis": {"range": [0, max(result_df['Revenue']) / 1e6 * 1.2]},
+                "bar": {"color": colors[i % len(colors)]},
+                "bgcolor": "black",
+                "borderwidth": 2,
+                "bordercolor": "white"
+            }
+        ))
+    fig1.update_layout(
+        grid={'rows': 1, 'columns': len(result_df), 'pattern': "independent"},
+        paper_bgcolor="black",
+        plot_bgcolor="black",
+        height=400
+    )
     st.plotly_chart(fig1)
 
-    # ROI Indicators
+    # Donut: ROI Indicators
     st.subheader("Adjusted ROI by Strategy")
-    colors = ["#1f77b4", "#ff7f0e", "#2ca02c"]
     fig2 = go.Figure()
     for i, row in result_df.iterrows():
         fig2.add_trace(go.Indicator(
             mode="gauge+number",
             value=row["ROI"] * 100,
-            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>% ROI</sub>", "font": {"size": 16}},
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>% ROI</sub>", "font": {"size": 18}},
             domain={"row": 0, "column": i},
-            number={"suffix": "%", "font": {"size": 30, "color": "white"}},
+            number={"suffix": "%", "font": {"size": 32, "color": "white"}},
             gauge={
-                "axis": {"range": [-100, 100], "tickwidth": 1, "tickcolor": "gray"},
+                "axis": {"range": [-100, 100], "tickwidth": 1},
                 "bar": {"color": colors[i % len(colors)]},
                 "bgcolor": "black",
                 "borderwidth": 2,
@@ -112,12 +132,12 @@ def main():
         mime="text/csv"
     )
 
-    # Notes
+    # Insight
     st.markdown("### Interpretation")
     st.markdown("""
-    - ROI is affected most by degradation rate and O&M costs.
-    - Total lifetime revenue is driven by strike price and installed capacity.
-    - Use these comparisons to evaluate competitive positioning or auction bids.
+    - ROI is sensitive to O&M costs and degradation rates.
+    - Revenue is most affected by pricing reference and asset life.
+    - Use this to assess strategy risks and long-term value impact.
     """)
 
 if __name__ == "__main__":
