@@ -2,6 +2,7 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import io
 
 def main():
     st.title("Bidding Strategy Simulator")
@@ -30,8 +31,35 @@ def main():
     col1.metric("Mean (£)", f"{revenue.mean():,.0f}")
     col2.metric("P10 (£)", f"{np.percentile(revenue, 10):,.0f}")
     col3.metric("P90 (£)", f"{np.percentile(revenue, 90):,.0f}")
-    win_prob = round((bid_price > market_price) * 100, 1)
+
+    # Improved win probability based on simulation
+    win_prob = np.mean(prices <= bid_price) * 100  # Probability bid price >= market price (win)
+    win_prob = round(win_prob, 1)
     col4.metric("Win Probability", f"{win_prob}%")
+
+    # Summary Table
+    summary_df = pd.DataFrame({
+        "Metric": ["Mean Revenue (£)", "P10 Revenue (£)", "P90 Revenue (£)", "Win Probability (%)"],
+        "Value": [f"{revenue.mean():,.0f}",
+                  f"{np.percentile(revenue, 10):,.0f}",
+                  f"{np.percentile(revenue, 90):,.0f}",
+                  f"{win_prob}%"]
+    })
+
+    st.markdown("### Summary Table")
+    st.table(summary_df)
+
+    # CSV Download button for summary
+    csv_buffer = io.StringIO()
+    summary_df.to_csv(csv_buffer, index=False)
+    csv_data = csv_buffer.getvalue()
+
+    st.download_button(
+        label="Download Summary as CSV",
+        data=csv_data,
+        file_name="bidding_strategy_summary.csv",
+        mime="text/csv"
+    )
 
     # Notes
     st.markdown("""
@@ -41,3 +69,6 @@ def main():
     - A **higher strike** improves potential earnings but reduces **award likelihood**.
     - This tool helps identify **bid levels that balance certainty vs profit**.
     """)
+
+if __name__ == "__main__":
+    main()
