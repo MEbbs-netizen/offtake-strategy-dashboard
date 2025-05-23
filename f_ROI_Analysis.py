@@ -70,9 +70,9 @@ def main():
             value=row["Revenue"] / 1e6,
             title={"text": f"<b>{row['Reference_Type']}</b><br><sub>£m</sub>", "font": {"size": 18}},
             domain={"row": 0, "column": i},
-            number={"font": {"size": 36, "color": "white"}},
+            number={"font": {"size": 36, "color": font_color}, "valueformat": ".2f"},
             gauge={
-                "axis": {"range": [0, max(result_df['Revenue']) / 1e6 * 1.2]},
+                "axis": {"range": [0, max(result_df['Revenue']) / 1e6 * 1.2], "tickwidth": 1, "tickcolor": "gray"},
                 "bar": {"color": colors[i % len(colors)]},
                 "bgcolor": "black",
                 "borderwidth": 2,
@@ -80,17 +80,47 @@ def main():
             }
         ))
     fig1.update_layout(
-        paper_bgcolor=bg_color, plot_bgcolor=bg_color, font=dict(color=font_color)
+        grid={"rows": 1, "columns": 3, "pattern": "independent"},
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color)
     )
     st.plotly_chart(fig1)
 
-    # ROI Bar Chart
+    # ROI donut-style
     st.subheader("ROI by Reference Type")
-    fig2 = px.bar(result_df, x="Reference_Type", y="ROI", text="ROI_Label", color="Reference_Type")
+    fig2 = go.Figure()
+    for i, row in result_df.iterrows():
+        fig2.add_trace(go.Indicator(
+            mode="gauge+number",
+            value=row["ROI"] * 100,
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>ROI %</sub>", "font": {"size": 18}},
+            domain={"row": 0, "column": i},
+            number={"font": {"size": 36, "color": font_color}, "valueformat": ".1f"},
+            gauge={
+                "axis": {"range": [-100, 100], "tickwidth": 1, "tickcolor": "gray"},
+                "bar": {"color": colors[i % len(colors)]},
+                "bgcolor": "black",
+                "borderwidth": 2,
+                "bordercolor": "white"
+            }
+        ))
     fig2.update_layout(
-        paper_bgcolor=bg_color, plot_bgcolor=bg_color, font=dict(color=font_color)
+        grid={"rows": 1, "columns": 3, "pattern": "independent"},
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color)
     )
     st.plotly_chart(fig2)
+
+    # Insights and Findings
+    st.markdown("---")
+    st.markdown("### 📘 Insights & Findings")
+    best_roi = result_df.loc[result_df["ROI"].idxmax()]
+    worst_roi = result_df.loc[result_df["ROI"].idxmin()]
+    st.markdown(f"- **{best_roi['Reference_Type']}** achieved the highest ROI at **{best_roi['ROI_Label']}**.")
+    st.markdown(f"- **{worst_roi['Reference_Type']}** had the lowest ROI at **{worst_roi['ROI_Label']}**.")
+    st.markdown("This suggests the impact of market price assumptions and operational costs are substantial on financial returns across reference types.")
 
 if __name__ == "__main__":
     main()
