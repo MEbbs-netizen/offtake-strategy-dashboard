@@ -23,11 +23,11 @@ def run_gurobi_strategy(cfd_val, ppa_val, merchant_val):
 
         selected_strategy = [s for s in strategies if x[s].X > 0.5][0]
         revenue = values[selected_strategy]
-        return selected_strategy, revenue
+        return selected_strategy, revenue, values
 
     except gp.GurobiError as e:
         st.error(f"Gurobi Error: {e}")
-        return None, None
+        return None, None, {}
 
 def main():
     st.title("Revenue Projection Model")
@@ -39,16 +39,10 @@ def main():
     ppa_val = st.sidebar.slider("PPA Base Revenue (£m)", 10, 30, 18)
     merchant_val = st.sidebar.slider("Merchant Base Revenue (£m)", 10, 30, 20)
 
-    selected_strategy, revenue = run_gurobi_strategy(cfd_val, ppa_val, merchant_val)
+    selected_strategy, revenue, strategy_values = run_gurobi_strategy(cfd_val, ppa_val, merchant_val)
 
     if selected_strategy:
         st.success(f"Optimal Strategy: **{selected_strategy}** with projected revenue of **£{revenue:.2f}m**")
-
-        strategy_values = {
-            "CfD": cfd_val,
-            "PPA": ppa_val,
-            "Merchant": merchant_val
-        }
 
         fig = go.Figure()
         colors = {"CfD": "royalblue", "PPA": "indianred", "Merchant": "orange"}
@@ -59,7 +53,7 @@ def main():
                 value=value,
                 title={'text': strategy},
                 gauge={
-                    'axis': {'range': [0, 25]},
+                    'axis': {'range': [0, max(strategy_values.values()) * 1.2]},
                     'bar': {'color': colors[strategy]}
                 },
                 domain={'row': 0, 'column': list(strategy_values.keys()).index(strategy)}
@@ -71,6 +65,22 @@ def main():
         )
 
         st.plotly_chart(fig)
+
+        # Notes and Insights
+        st.markdown("---")
+        st.subheader("📘 Notes & Insights")
+
+        # Sort strategies by revenue
+        sorted_strats = sorted(strategy_values.items(), key=lambda x: x[1], reverse=True)
+        best = sorted_strats[0]
+        second = sorted_strats[1]
+
+        margin = best[1] - second[1]
+        st.markdown(f"- The **{best[0]}** strategy offers the highest projected revenue: **£{best[1]:.2f}m**.")
+        st.markdown(f"- The second-best option is **{second[0]}**, trailing by **£{margin:.2f}m**.")
+
+        if margin < 1:
+            st.warning("⚠️ The revenue difference between top strategies is small. Consider risk, stability, or external factors.")
 
 if __name__ == "__main__":
     main()
