@@ -53,7 +53,7 @@ def main():
             value=row["Revenue"] / 1e6,
             title={"text": f"<b>{row['Strategy']}</b><br><sub>£m</sub>", "font": {"size": 18}},
             domain={'row': 0, 'column': i},
-            number={"font": {"size": 36, "color": "white"}},
+            number={"font": {"size": 36, "color": font_color}, "valueformat": ".2f"},
             gauge={
                 "axis": {"range": [None, max(df['Revenue']) / 1e6], "tickwidth": 1, "tickcolor": "gray"},
                 "bar": {"color": colors[i]},
