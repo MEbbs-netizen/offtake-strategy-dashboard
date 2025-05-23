@@ -1,92 +1,76 @@
 import streamlit as st
-import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import gurobipy as gp
+from gurobipy import GRB
 
-# Theme detection
-st.markdown("""
-    <script>
-    const theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
-    document.cookie = "theme=" + theme;
-    </script>
-""", unsafe_allow_html=True)
+def run_gurobi_strategy(cfd_val, ppa_val, merchant_val):
+    try:
+        model = gp.Model()
+        strategies = ["CfD", "PPA", "Merchant"]
+        values = {
+            "CfD": np.random.normal(cfd_val, 5),
+            "PPA": np.random.normal(ppa_val, 8),
+            "Merchant": np.random.normal(merchant_val, 10)
+        }
 
-theme = st.query_params.get("theme", "light")
-bg_color = '#ffffff' if theme == 'light' else '#000000'
-font_color = '#000000' if theme == 'light' else '#ffffff'
+        x = {s: model.addVar(vtype=GRB.BINARY, name=s) for s in strategies}
+        model.addConstr(gp.quicksum(x[s] for s in strategies) == 1)
+        model.setObjective(gp.quicksum(values[s] * x[s] for s in strategies), GRB.MAXIMIZE)
+        model.optimize()
+
+        selected_strategy = [s for s in strategies if x[s].X > 0.5][0]
+        revenue = values[selected_strategy]
+        return selected_strategy, revenue
+
+    except gp.GurobiError as e:
+        st.error(f"Gurobi Error: {e}")
+        return None, None
 
 def main():
     st.title("Revenue Projection Model")
     st.markdown("This tool simulates expected annual revenue for three offtake strategies under uncertain market conditions.")
     st.markdown("Adjust the inputs in the sidebar to reflect project assumptions and compare outcomes.")
+    st.warning("⚠️ PPA Discount Applied: £2/MWh")
 
-    # Sidebar controls
-    gen = st.sidebar.slider("Annual Generation (MWh)", 50000, 500000, 250000, step=10000)
-    base_price = st.sidebar.slider("Base Market Price (£/MWh)", 40, 120, 70)
-    strike = st.sidebar.slider("CfD Strike Price (£/MWh)", 50, 150, 100)
-    volatility = st.sidebar.slider("Market Price Volatility (sigma)", 0, 30, 10)
-    ppa_discount = st.sidebar.slider("PPA Discount (£/MWh)", 0, 10, 2)
+    cfd_val = st.sidebar.slider("CfD Base Revenue (£m)", 10, 30, 25)
+    ppa_val = st.sidebar.slider("PPA Base Revenue (£m)", 10, 30, 18)
+    merchant_val = st.sidebar.slider("Merchant Base Revenue (£m)", 10, 30, 20)
 
-    st.markdown(f'⚠️ **PPA Discount Applied:** £{ppa_discount}/MWh')
+    selected_strategy, revenue = run_gurobi_strategy(cfd_val, ppa_val, merchant_val)
 
-    # Simulate 25 years of market prices
-    np.random.seed(42)
-    prices = np.random.normal(loc=base_price, scale=volatility, size=25)
+    if selected_strategy:
+        st.success(f"Optimal Strategy: **{selected_strategy}** with projected revenue of **£{revenue:.2f}m**")
 
-    # Calculate revenue per strategy
-    revenue = {
-        "CfD": (strike * gen),
-        "PPA": ((prices.mean() - ppa_discount) * gen),
-        "Merchant": (prices.mean() * gen)
-    }
+        strategy_values = {
+            "CfD": cfd_val,
+            "PPA": ppa_val,
+            "Merchant": merchant_val
+        }
 
-    df = pd.DataFrame.from_dict(revenue, orient="index", columns=["Revenue"]).reset_index()
-    df.columns = ["Strategy", "Revenue"]
+        fig = go.Figure()
+        colors = {"CfD": "royalblue", "PPA": "indianred", "Merchant": "orange"}
 
-    # Donut-style gauge chart
-    fig = go.Figure()
-    colors = ["#1f77b4", "#8c564b", "#ff7f0e"]
+        for strategy, value in strategy_values.items():
+            fig.add_trace(go.Indicator(
+                mode="gauge+number",
+                value=value,
+                title={'text': strategy},
+                gauge={
+                    'axis': {'range': [0, 25]},
+                    'bar': {'color': colors[strategy]}
+                },
+                domain={'row': 0, 'column': list(strategy_values.keys()).index(strategy)}
+            ))
 
-    for i, row in df.iterrows():
-        fig.add_trace(go.Indicator(
-            mode="gauge+number",
-            value=row["Revenue"] / 1e6,
-            title={"text": f"<b>{row['Strategy']}</b><br><sub>£m</sub>", "font": {"size": 18}},
-            domain={'row': 0, 'column': i},
-            number={"font": {"size": 36, "color": font_color}, "valueformat": ".2f"},
-            gauge={
-                "axis": {"range": [None, max(df['Revenue']) / 1e6], "tickwidth": 1, "tickcolor": "gray"},
-                "bar": {"color": colors[i]},
-                "bgcolor": "black",
-                "borderwidth": 2,
-                "bordercolor": "white"
-            }
-        ))
+        fig.update_layout(
+            grid={'rows': 1, 'columns': 3, 'pattern': "independent"},
+            title_text="Revenue Projection by Strategy"
+        )
 
-    fig.update_layout(
-        grid={'rows': 1, 'columns': 3, 'pattern': "independent"},
-        paper_bgcolor=bg_color,
-        plot_bgcolor=bg_color,
-        title={
-            "text": "Revenue Projection by Strategy",
-            "font": {"size": 28, "color": font_color},
-            "x": 0.5
-        },
-        font=dict(color=font_color)
-    )
-
-    st.plotly_chart(fig)
-
-    # Insight Section
-    st.markdown("---")
-    st.markdown("### 📘 Notes")
-    st.markdown("- **CfD** guarantees revenue at the strike price regardless of market conditions.")
-    st.markdown("- **PPA** typically trades at a discount to merchant prices due to contract structure.")
-    st.markdown("- **Merchant** strategies carry more upside—and downside—depending on price volatility.")
-
-    st.markdown("### 💡 Key Insight")
-    best = df.loc[df["Revenue"].idxmax()]
-    st.markdown(f"- **{best['Strategy']}** strategy yields the highest projected revenue: **£{best['Revenue'] / 1e6:.2f} million**.")
+        st.plotly_chart(fig)
 
 if __name__ == "__main__":
     main()
