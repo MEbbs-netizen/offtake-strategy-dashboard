@@ -59,9 +59,9 @@ def main():
         fig1.add_trace(go.Indicator(
             mode="gauge+number",
             value=row["Revenue"] / 1e6,
-            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>£m</sub>", "font": {"size": 18}},
-            domain={"row": 0, "column": i},
-            number={"font": {"size": 36}, "valueformat": ".2f"},
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>£m</sub>", "font": {"size": 22}},
+            domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
+            number={"font": {"size": 48}, "valueformat": ".2f"},
             gauge={
                 "axis": {"range": [0, max(result_df['Revenue']) / 1e6 * 1.2], "tickwidth": 1, "tickcolor": "gray"},
                 "bar": {"color": colors[i % len(colors)]},
@@ -70,22 +70,19 @@ def main():
                 "bordercolor": "white"
             }
         ))
-    fig1.update_layout(
-        grid={"rows": 1, "columns": 3, "pattern": "independent"},
-        # removed manual bg/font colors
-    )
+    fig1.update_layout(height=500, margin=dict(t=20, b=20))
     st.plotly_chart(fig1)
 
-    # ROI donut-style
+    # ROI donut-style (ENLARGED)
     st.subheader("ROI by Reference Type")
     fig2 = go.Figure()
     for i, row in result_df.iterrows():
         fig2.add_trace(go.Indicator(
             mode="gauge+number",
             value=row["ROI"] * 100,
-            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>ROI %</sub>", "font": {"size": 18}},
-            domain={"row": 0, "column": i},
-            number={"font": {"size": 36}, "valueformat": ".1f"},
+            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>ROI %</sub>", "font": {"size": 22}},
+            domain={"x": [i * 0.33, (i + 1) * 0.33], "y": [0, 1]},
+            number={"font": {"size": 48}, "valueformat": ".1f"},
             gauge={
                 "axis": {"range": [-100, 100], "tickwidth": 1, "tickcolor": "gray"},
                 "bar": {"color": colors[i % len(colors)]},
@@ -94,10 +91,7 @@ def main():
                 "bordercolor": "white"
             }
         ))
-    fig2.update_layout(
-        grid={"rows": 1, "columns": 3, "pattern": "independent"},
-        # removed manual bg/font colors
-    )
+    fig2.update_layout(height=500, margin=dict(t=20, b=20))
     st.plotly_chart(fig2)
 
     # Insights and Findings
