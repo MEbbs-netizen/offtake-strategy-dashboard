@@ -2,18 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Theme detection
-st.markdown("""
-    <script>
-    const theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
-    document.cookie = "theme=" + theme;
-    </script>
-""", unsafe_allow_html=True)
-
-theme = st.query_params.get("theme", "light")
-bg_color = '#ffffff' if theme == 'light' else '#000000'
-font_color = '#000000' if theme == 'light' else '#ffffff'
-
 def main():
     st.title("Scenario Stress Test")
 
@@ -75,11 +63,8 @@ def main():
         ))
 
     fig.update_layout(
-        paper_bgcolor=bg_color,
-        plot_bgcolor=bg_color,
         height=550,
-        margin=dict(l=10, r=10, t=40, b=10),
-        font=dict(color=font_color)
+        margin=dict(l=10, r=10, t=40, b=10)
     )
     st.plotly_chart(fig)
 
