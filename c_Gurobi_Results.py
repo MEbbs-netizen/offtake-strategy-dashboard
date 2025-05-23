@@ -1,8 +1,21 @@
 import streamlit as st
+import plotly.graph_objects as go
+
+# Detect browser theme using JavaScript
+st.markdown("""
+    <script>
+    const theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
+    document.cookie = "theme=" + theme;
+    </script>
+""", unsafe_allow_html=True)
+
+theme = st.experimental_get_query_params().get("theme", ["light"])[0]
+bg_color = '#ffffff' if theme == 'light' else '#000000'
+font_color = '#000000' if theme == 'light' else '#ffffff'
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 import gurobipy as gp
 from gurobipy import GRB
 
@@ -55,7 +68,12 @@ def main():
     # Line chart
     st.subheader("Strategy Selection Trends vs Simulations")
     fig_line = px.line(summary_df, x="Simulations", y="Count", color="Strategy", markers=True)
-    fig_line.update_layout(paper_bgcolor="black", plot_bgcolor="black", font_color="white", height=450)
+    fig_line.update_layout(
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color),
+        height=450
+    )
     st.plotly_chart(fig_line)
 
     # Donut chart
@@ -64,24 +82,14 @@ def main():
     fig_donut = go.Figure(data=[go.Pie(
         labels=final_df['Strategy'],
         values=final_df['Count'],
-        hole=0.5,
-        marker=dict(colors=['#1f77b4', '#ff7f0e', '#2ca02c']),
-        textinfo='label+percent'
+        hole=0.4
     )])
     fig_donut.update_layout(
-        showlegend=True,
-        paper_bgcolor='black',
-        plot_bgcolor='black',
-        font=dict(color='white'),
-        margin=dict(t=30, b=30, l=30, r=30),
-        height=400
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
+        font=dict(color=font_color)
     )
     st.plotly_chart(fig_donut)
-
-    st.subheader("Insights")
-    top = final_df.loc[final_df["Count"].idxmax()]
-    st.markdown(f"- The **{top['Strategy']}** strategy was selected most frequently: **{top['Count']:,}** times.")
-    st.markdown("- These results reflect your expected value assumptions and Monte Carlo variation.")
 
 if __name__ == "__main__":
     main()
