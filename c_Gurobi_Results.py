@@ -9,7 +9,7 @@ st.markdown("""
     </script>
 """, unsafe_allow_html=True)
 
-theme = st.experimental_get_query_params().get("theme", ["light"])[0]
+theme = st.query_params.get("theme", "light")
 bg_color = '#ffffff' if theme == 'light' else '#000000'
 font_color = '#000000' if theme == 'light' else '#ffffff'
 
@@ -41,6 +41,22 @@ def run_gurobi_strategy(cfd_val, ppa_val, merchant_val):
     except gp.GurobiError:
         return "Error"
     return "Unknown"
+
+def generate_insight(distribution):
+    most_common = distribution.iloc[distribution['Count'].idxmax()]
+    least_common = distribution.iloc[distribution['Count'].idxmin()]
+    total = distribution['Count'].sum()
+
+    insight = f"""
+### 🧠 Insights
+
+- The most frequently selected strategy is **{most_common['Strategy']}**, accounting for **{most_common['Count'] / total:.1%}** of simulations.
+- The least favored strategy is **{least_common['Strategy']}**, with only **{least_common['Count'] / total:.1%}**.
+- This suggests that under the current expected value assumptions, **{most_common['Strategy']}** is consistently more profitable or stable compared to alternatives.
+
+Adjusting the expected value sliders could significantly impact this outcome, especially if assumptions about market conditions or contract preferences change.
+"""
+    return insight
 
 def main():
     st.title("Gurobi Strategy Optimization (Simulated)")
@@ -82,14 +98,22 @@ def main():
     fig_donut = go.Figure(data=[go.Pie(
         labels=final_df['Strategy'],
         values=final_df['Count'],
-        hole=0.4
+        hole=0.4,
+        textinfo='label+percent',
+        textfont_size=20,
+        marker=dict(line=dict(color='#000000', width=2)),
+        domain={'x': [0, 1], 'y': [0, 1]}
     )])
     fig_donut.update_layout(
         paper_bgcolor=bg_color,
         plot_bgcolor=bg_color,
-        font=dict(color=font_color)
+        font=dict(color=font_color),
+        height=700
     )
     st.plotly_chart(fig_donut)
+
+    # Auto-generated markdown insights
+    st.markdown(generate_insight(final_df))
 
 if __name__ == "__main__":
     main()
