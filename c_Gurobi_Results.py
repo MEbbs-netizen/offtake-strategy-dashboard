@@ -17,60 +17,80 @@ def run_gurobi_strategy(cfd_val, ppa_val, merchant_val):
         }
 
         x = {s: model.addVar(vtype=GRB.BINARY, name=s) for s in strategies}
-        model.addConstr(gp.quicksum(x[s] for s in strategies) == 1)
         model.setObjective(gp.quicksum(values[s] * x[s] for s in strategies), GRB.MAXIMIZE)
+        model.addConstr(gp.quicksum(x[s] for s in strategies) == 1)
+        model.setParam('OutputFlag', 0)
         model.optimize()
 
-        selected_strategy = [s for s in strategies if x[s].X > 0.5][0]
-        revenue = values[selected_strategy]
-        return selected_strategy, revenue
+        for s in strategies:
+            if x[s].X > 0.5:
+                return s
+    except gp.GurobiError:
+        return "Error"
+    return "Unknown"
 
-    except gp.GurobiError as e:
-        st.error(f"Gurobi Error: {e}")
-        return None, None
+def generate_insight(distribution):
+    most_common = distribution.iloc[distribution['Count'].idxmax()]
+    least_common = distribution.iloc[distribution['Count'].idxmin()]
+    total = distribution['Count'].sum()
+
+    insight = f"""
+### 🧠 Insights
+
+- The most frequently selected strategy is **{most_common['Strategy']}**, accounting for **{most_common['Count'] / total:.1%}** of simulations.
+- The least favored strategy is **{least_common['Strategy']}**, with only **{least_common['Count'] / total:.1%}**.
+- This suggests that under the current expected value assumptions, **{most_common['Strategy']}** is consistently more profitable or stable compared to alternatives.
+
+Adjusting the expected value sliders could significantly impact this outcome, especially if assumptions about market conditions or contract preferences change.
+"""
+    return insight
 
 def main():
-    st.title("Revenue Projection Model")
-    st.markdown("This tool simulates expected annual revenue for three offtake strategies under uncertain market conditions.")
-    st.markdown("Adjust the inputs in the sidebar to reflect project assumptions and compare outcomes.")
-    st.warning("⚠️ PPA Discount Applied: £2/MWh")
+    st.title("Gurobi Strategy Optimization (Simulated)")
 
-    cfd_val = st.sidebar.slider("CfD Base Revenue (£m)", 10, 30, 25)
-    ppa_val = st.sidebar.slider("PPA Base Revenue (£m)", 10, 30, 18)
-    merchant_val = st.sidebar.slider("Merchant Base Revenue (£m)", 10, 30, 20)
+    # User-defined expected values
+    st.sidebar.markdown("### Expected Value Settings")
+    cfd_val = st.sidebar.slider("Expected CfD Value", 60, 100, 80)
+    ppa_val = st.sidebar.slider("Expected PPA Value", 40, 90, 65)
+    merchant_val = st.sidebar.slider("Expected Merchant Value", 50, 100, 75)
 
-    selected_strategy, revenue = run_gurobi_strategy(cfd_val, ppa_val, merchant_val)
+    max_simulations = st.slider("Max Number of Simulations", 100, 10000, 1000, step=500)
 
-    if selected_strategy:
-        st.success(f"Optimal Strategy: **{selected_strategy}** with projected revenue of **£{revenue:.2f}m**")
+    strategy_counts = []
+    steps = list(range(100, max_simulations + 1, 100))
+    for sim in steps:
+        batch = [run_gurobi_strategy(cfd_val, ppa_val, merchant_val) for _ in range(sim)]
+        counts = pd.Series(batch).value_counts().reset_index()
+        counts.columns = ["Strategy", "Count"]
+        counts["Simulations"] = sim
+        strategy_counts.append(counts)
 
-        strategy_values = {
-            "CfD": cfd_val,
-            "PPA": ppa_val,
-            "Merchant": merchant_val
-        }
+    summary_df = pd.concat(strategy_counts)
+    summary_df = summary_df.sort_values(by=["Simulations", "Strategy"])
 
-        fig = go.Figure()
-        colors = {"CfD": "royalblue", "PPA": "indianred", "Merchant": "orange"}
+    # Line chart
+    st.subheader("Strategy Selection Trends vs Simulations")
+    fig_line = px.line(summary_df, x="Simulations", y="Count", color="Strategy", markers=True)
+    fig_line.update_layout(height=450)
+    st.plotly_chart(fig_line)
 
-        for strategy, value in strategy_values.items():
-            fig.add_trace(go.Indicator(
-                mode="gauge+number",
-                value=value,
-                title={'text': strategy},
-                gauge={
-                    'axis': {'range': [0, 25]},
-                    'bar': {'color': colors[strategy]}
-                },
-                domain={'row': 0, 'column': list(strategy_values.keys()).index(strategy)}
-            ))
+    # Donut chart
+    st.subheader("Final Strategy Distribution")
+    final_df = summary_df[summary_df['Simulations'] == summary_df['Simulations'].max()]
+    fig_donut = go.Figure(data=[go.Pie(
+        labels=final_df['Strategy'],
+        values=final_df['Count'],
+        hole=0.4,
+        textinfo='label+percent',
+        textfont_size=20,
+        marker=dict(line=dict(color='#000000', width=2)),
+        domain={'x': [0, 1], 'y': [0, 1]}
+    )])
+    fig_donut.update_layout(height=700)
+    st.plotly_chart(fig_donut)
 
-        fig.update_layout(
-            grid={'rows': 1, 'columns': 3, 'pattern': "independent"},
-            title_text="Revenue Projection by Strategy"
-        )
-
-        st.plotly_chart(fig)
+    # Auto-generated markdown insights
+    st.markdown(generate_insight(final_df))
 
 if __name__ == "__main__":
     main()
