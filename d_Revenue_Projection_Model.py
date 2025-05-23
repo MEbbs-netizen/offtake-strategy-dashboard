@@ -3,6 +3,18 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
+# Theme detection
+st.markdown("""
+    <script>
+    const theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
+    document.cookie = "theme=" + theme;
+    </script>
+""", unsafe_allow_html=True)
+
+theme = st.query_params.get("theme", "light")
+bg_color = '#ffffff' if theme == 'light' else '#000000'
+font_color = '#000000' if theme == 'light' else '#ffffff'
+
 def main():
     st.title("Revenue Projection Model")
     st.markdown("This tool simulates expected annual revenue for three offtake strategies under uncertain market conditions.")
@@ -53,14 +65,14 @@ def main():
 
     fig.update_layout(
         grid={'rows': 1, 'columns': 3, 'pattern': "independent"},
-        paper_bgcolor="black",
-        plot_bgcolor="black",
+        paper_bgcolor=bg_color,
+        plot_bgcolor=bg_color,
         title={
             "text": "Revenue Projection by Strategy",
-            "font": {"size": 28, "color": "white"},
+            "font": {"size": 28, "color": font_color},
             "x": 0.5
         },
-        font=dict(color="white")
+        font=dict(color=font_color)
     )
 
     st.plotly_chart(fig)
@@ -74,7 +86,7 @@ def main():
 
     st.markdown("### 💡 Key Insight")
     best = df.loc[df["Revenue"].idxmax()]
-    st.markdown(f"- **{best['Strategy']}** strategy yields the highest projected revenue (£{best['Revenue']:,.0f}).")
+    st.markdown(f"- **{best['Strategy']}** strategy yields the highest projected revenue: **£{best['Revenue'] / 1e6:.2f} million**.")
 
 if __name__ == "__main__":
     main()

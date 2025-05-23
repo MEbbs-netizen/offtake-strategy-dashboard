@@ -3,6 +3,18 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
+# Theme detection
+st.markdown("""
+    <script>
+    const theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? "dark" : "light";
+    document.cookie = "theme=" + theme;
+    </script>
+""", unsafe_allow_html=True)
+
+theme = st.query_params.get("theme", "light")
+bg_color = '#ffffff' if theme == 'light' else '#000000'
+font_color = '#000000' if theme == 'light' else '#ffffff'
+
 def main():
     st.title("ROI Analysis")
     st.markdown("This section evaluates total revenue and ROI over the asset’s lifetime, factoring in:")
@@ -68,77 +80,17 @@ def main():
             }
         ))
     fig1.update_layout(
-        grid={'rows': 1, 'columns': len(result_df), 'pattern': "independent"},
-        paper_bgcolor="black",
-        plot_bgcolor="black",
-        height=400
+        paper_bgcolor=bg_color, plot_bgcolor=bg_color, font=dict(color=font_color)
     )
     st.plotly_chart(fig1)
 
-    # Donut: ROI Indicators
-    st.subheader("Adjusted ROI by Strategy")
-    fig2 = go.Figure()
-    for i, row in result_df.iterrows():
-        fig2.add_trace(go.Indicator(
-            mode="gauge+number",
-            value=row["ROI"] * 100,
-            title={"text": f"<b>{row['Reference_Type']}</b><br><sub>% ROI</sub>", "font": {"size": 18}},
-            domain={"row": 0, "column": i},
-            number={"suffix": "%", "font": {"size": 32, "color": "white"}},
-            gauge={
-                "axis": {"range": [-100, 100], "tickwidth": 1},
-                "bar": {"color": colors[i % len(colors)]},
-                "bgcolor": "black",
-                "borderwidth": 2,
-                "bordercolor": "white"
-            }
-        ))
+    # ROI Bar Chart
+    st.subheader("ROI by Reference Type")
+    fig2 = px.bar(result_df, x="Reference_Type", y="ROI", text="ROI_Label", color="Reference_Type")
     fig2.update_layout(
-        grid={'rows': 1, 'columns': len(result_df), 'pattern': "independent"},
-        paper_bgcolor="black",
-        plot_bgcolor="black",
-        height=400
+        paper_bgcolor=bg_color, plot_bgcolor=bg_color, font=dict(color=font_color)
     )
     st.plotly_chart(fig2)
-
-    # ROI Over Time
-    st.subheader("Cumulative ROI Over Time")
-    roi_by_year = []
-    for ref in df["Reference_Type"].unique():
-        yearly_output = [discounted_output(y) for y in range(1, asset_life + 1)]
-        avg_price = df[df["Reference_Type"] == ref]["Strike_Price_GBP_Per_MWh"].mean()
-        annual_revenue = [avg_price * gen for gen in yearly_output]
-        annual_om_cost = [om_cost_per_mwh * gen for gen in yearly_output]
-        cumulative_cost = project_cost
-        for year in range(asset_life):
-            cumulative_cost += annual_om_cost[year]
-            roi_y = (sum(annual_revenue[:year + 1]) - cumulative_cost) / cumulative_cost
-            roi_by_year.append({
-                "Year": year + 1,
-                "ROI": roi_y,
-                "Reference_Type": ref
-            })
-
-    roi_time_df = pd.DataFrame(roi_by_year)
-    fig3 = px.line(roi_time_df, x="Year", y="ROI", color="Reference_Type", markers=True)
-    fig3.update_layout(yaxis_tickformat=".0%", height=450, yaxis_title="Cumulative ROI")
-    st.plotly_chart(fig3)
-
-    # CSV Export
-    st.download_button(
-        label="Download ROI Results as CSV",
-        data=result_df.to_csv(index=False),
-        file_name="roi_analysis_results.csv",
-        mime="text/csv"
-    )
-
-    # Insight
-    st.markdown("### Interpretation")
-    st.markdown("""
-    - ROI is sensitive to O&M costs and degradation rates.
-    - Revenue is most affected by pricing reference and asset life.
-    - Use this to assess strategy risks and long-term value impact.
-    """)
 
 if __name__ == "__main__":
     main()
