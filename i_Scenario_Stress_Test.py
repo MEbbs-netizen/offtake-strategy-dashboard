@@ -93,5 +93,30 @@ def main():
             "Delta_%": "{:+.1f} %"
         }))
 
+    # Findings and Insights
+    st.subheader("Findings and Insights")
+    insights = []
+
+    max_gain = df.loc[df["Delta_Revenue"].idxmax()]
+    max_loss = df.loc[df["Delta_Revenue"].idxmin()]
+
+    if max_gain["Delta_Revenue"] > 0:
+        insights.append(
+            f"The **{max_gain['Strategy']}** strategy shows the highest gain under the stressed scenario, "
+            f"with an increase of **£{max_gain['Delta_Revenue']:,.0f}** ({max_gain['Delta_%']:+.1f}%)."
+        )
+
+    if max_loss["Delta_Revenue"] < 0:
+        insights.append(
+            f"The **{max_loss['Strategy']}** strategy experiences the greatest decline, "
+            f"with a decrease of **£{abs(max_loss['Delta_Revenue']):,.0f}** ({max_loss['Delta_%']:+.1f}%)."
+        )
+
+    if df[df["Strategy"] == "CfD"]["Delta_Revenue"].iloc[0] == 0:
+        insights.append("The **CfD** strategy remains unaffected by market price shocks, demonstrating stability.")
+
+    for insight in insights:
+        st.markdown(f"- {insight}")
+
 if __name__ == "__main__":
     main()
