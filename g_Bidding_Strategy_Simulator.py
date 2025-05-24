@@ -7,7 +7,7 @@ import io
 def main():
     st.title("Bidding Strategy Simulator")
 
-    st.markdown("### 🎯 Simulate Revenue Outcomes from Strike Price Bids")
+    st.markdown("### Simulate Revenue Outcomes from Strike Price Bids")
 
     # User inputs
     bid_price = st.sidebar.slider("Bid Strike Price (£/MWh)", 30, 150, 80, step=5)
